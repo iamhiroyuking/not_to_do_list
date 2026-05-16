@@ -46,3 +46,21 @@
 ## 📐 設計のこだわり
 - **データ管理の最適化**: `SwiftData` を採用し、リレーショナルなデータ構造（アイテムと日々の記録）を軽量かつ安全に永続化しています。
 - **無駄のないUI/UX**: ユーザーに余計なノイズを与えないよう、モノトーンを基調としたミニマルで洗練されたデザインを採用。スプラッシュ画面からコア機能まで統一感を持たせました。
+
+<table>
+  <tr>
+    <td><img width="200" src="https://github.com/user-attachments/assets/77234912-0a4f-48cf-b68c-8ce721679e5f" /></td>
+    <td><img width="200" src="https://github.com/user-attachments/assets/88a94517-4f44-40b3-9d05-be455c5e7885" /></td>
+    <td><img width="200" src="https://github.com/user-attachments/assets/bf88b118-9fd6-43e4-8ada-cf19c5e28499" /></td>
+  </tr>
+  <tr>
+    <td><img width="200" src="https://github.com/user-attachments/assets/0e0b163f-42f5-48e3-9380-0bdaec000f52" /></td>
+    <td><img width="200" src="https://github.com/user-attachments/assets/68180569-8bc1-4e8a-8ab3-6ac054b5a2d9" /></td>
+    <td><img width="200" src="https://github.com/user-attachments/assets/774dd9ed-e788-4438-81c4-c2798b4640b0" /></td>
+  </tr>
+  <tr>
+    <td><img width="200" src="https://github.com/user-attachments/assets/7e195c96-b059-427f-8fe0-749d0f9336a8" /></td>
+    <td><img width="200" src="https://github.com/user-attachments/assets/b180097e-d457-4193-a5f2-c986d155c972" /></td>
+    <td><img width="200" src="https://github.com/user-attachments/assets/65ecc5a3-9456-45ea-8faa-06dc5fa7b725" /></td>
+  </tr>
+</table>
