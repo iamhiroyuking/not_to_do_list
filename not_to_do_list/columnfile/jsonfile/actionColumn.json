@@ -1,0 +1,37 @@
+[
+    {
+        "title": "「やらない」を決める",
+        "subtitle": "選択と集中の力",
+        "htmlFile": "action1",
+        "iconName": "nosign",
+        "themeColor": "blue"
+    },
+    {
+        "title": "代わりの行動を用意する",
+        "subtitle": "悪習慣を上書きする",
+        "htmlFile": "action2",
+        "iconName": "arrow.2.squarepath",
+        "themeColor": "teal"
+    },
+    {
+        "title": "危険シグナルを予測する",
+        "subtitle": "失敗のパターンを潰す",
+        "htmlFile": "action3",
+        "iconName": "eye.visualizer",
+        "themeColor": "green"
+    },
+    {
+        "title": "記録して可視化する",
+        "subtitle": "自己管理のモチベーション",
+        "htmlFile": "action4",
+        "iconName": "chart.xyaxis.line",
+        "themeColor": "mint"
+    },
+    {
+        "title": "完璧じゃなくても戻る",
+        "subtitle": "素早い軌道修正の技術",
+        "htmlFile": "action5",
+        "iconName": "arrow.uturn.backward",
+        "themeColor": "cyan"
+    }
+]

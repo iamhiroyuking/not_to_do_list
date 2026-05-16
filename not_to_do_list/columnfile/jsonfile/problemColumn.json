@@ -1,0 +1,38 @@
+[
+    {
+        "title": "意志力は消耗する",
+        "subtitle": "決断疲れを防ぐには",
+        "htmlFile": "problem1",
+        "iconName": "battery.25",
+        "themeColor": "orange"
+    },
+    {
+        "title": "マルチタスクの幻想",
+        "subtitle": "脳のパフォーマンス低下",
+        "htmlFile": "problem2",
+        "iconName": "arrow.triangle.branch",
+        "themeColor": "red"
+    },
+    {
+        "title": "完璧主義という罠",
+        "subtitle": "「ゼロ百思考」をやめる",
+        "htmlFile": "problem3",
+        "iconName": "xmark.shield.fill",
+        "themeColor": "purple"
+    },
+    {
+        "title": "睡眠不足の本当の怖さ",
+        "subtitle": "自制心は夜に低下する",
+        "htmlFile": "problem4",
+        "iconName": "moon.zzz.fill",
+        "themeColor": "indigo"
+    },
+    {
+        "title": "偽りの報酬",
+        "subtitle": "目先のドーパミンに騙されない",
+        "htmlFile": "problem5",
+        "iconName": "gift.fill",
+        "themeColor": "pink"
+    }
+]
+

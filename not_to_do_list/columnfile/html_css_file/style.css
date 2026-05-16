@@ -1,0 +1,81 @@
+/* =========================================
+ Not To Do List - シンプル＆クリーン スタイル
+ ========================================= */
+
+:root {
+    /* 基本テキストカラー */
+    --text-primary: #333333;
+    --text-secondary: #444444;
+    
+    /* 蛍光ペンの色（ライトモード） */
+    --highlight-color: #fff89e;
+    
+    /* セクション別テーマカラー */
+    --color-problem: #FF9500; /* オレンジ */
+    --color-action: #007AFF;  /* ブルー */
+    --color-other: #8E8E93;   /* グレー */
+    
+    --theme-color: var(--color-other);
+}
+
+/* 🌙 ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text-primary: #FFFFFF;
+        --text-secondary: #EBEBF5;
+        
+        /* 蛍光ペンの色（ダークモードでは少し透過させて馴染ませる） */
+        --highlight-color: rgba(255, 215, 0, 0.4);
+        
+        --color-problem: #FF9F0A;
+        --color-action: #0A84FF;
+        --color-other: #98989D;
+    }
+}
+
+/* テーマ切り替え（bodyタグのクラスで判定） */
+body.section-problem { --theme-color: var(--color-problem); }
+body.section-action  { --theme-color: var(--color-action); }
+body.section-other   { --theme-color: var(--color-other); }
+
+/* =========================================
+ タイポグラフィ ＆ レイアウト
+ ========================================= */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    padding: 20px 24px 40px 24px; /* 左右の余白を少しだけ広げて読みやすく */
+    color: var(--text-primary);
+    line-height: 1.7;
+    background-color: transparent; /* SwiftUI側の背景を活かす */
+    -webkit-text-size-adjust: 100%;
+}
+
+/* 記事のタイトル（テーマカラーの下線） */
+h1 {
+    font-size: 22px;
+    border-bottom: 2px solid var(--theme-color);
+    padding-bottom: 8px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+/* 中見出し（テーマカラーの文字色） */
+h2 {
+    font-size: 18px;
+    color: var(--theme-color);
+    margin-top: 32px;
+    margin-bottom: 12px;
+}
+
+/* 本文 */
+p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+/* 蛍光ペン風ハイライト */
+.highlight {
+    background: linear-gradient(transparent 60%, var(--highlight-color) 60%);
+    font-weight: bold;
+}
