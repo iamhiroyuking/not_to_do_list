@@ -15,11 +15,10 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allItems: [NotToDoItem]
     @State private var showingDeleteAlert = false
-    
-    // 連続記録のリセット用
-    @AppStorage("lastRecordDate") private var lastRecordDate: Double = 0
-    @AppStorage("currentLoginStreak") private var currentLoginStreak: Int = 0
-    
+
+    // 記録直後のマインドセット表示日（データ全消去では一緒にリセットする）
+    @AppStorage("lastMindsetShownDate") private var lastMindsetShownDate: Double = 0
+
     var body: some View {
         NavigationStack {
             Form {
@@ -46,7 +45,8 @@ struct SettingsView: View {
                                 if granted {
                                     NotificationManager.shared.scheduleNotification(
                                         hour: notificationHour,
-                                        minute: notificationMinute
+                                        minute: notificationMinute,
+                                        body: warningSignalNotificationBody
                                     )
                                 } else {
                                     isNotificationEnabled = false // 許可がない場合はオフに戻す
@@ -74,7 +74,8 @@ struct SettingsView: View {
                                     
                                     NotificationManager.shared.scheduleNotification(
                                         hour: notificationHour,
-                                        minute: notificationMinute
+                                        minute: notificationMinute,
+                                        body: warningSignalNotificationBody
                                     )
                                 }
                             ),
@@ -85,6 +86,14 @@ struct SettingsView: View {
                     Text("通知設定")
                 } footer: {
                     Text("指定した時間に毎日の振り返り通知を受け取ります。")
+                }
+                .onAppear {
+                    // 端末側の設定アプリでオフにされていた場合、表示をずれさせない（G3）
+                    NotificationManager.shared.refreshAuthorizationStatus { isAuthorized in
+                        if !isAuthorized {
+                            isNotificationEnabled = false
+                        }
+                    }
                 }
                 
                 // MARK: - アプリ情報
@@ -125,17 +134,30 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - 通知に載せる危険シグナル（要件定義 v2 4章 層4）
+    //
+    // 「未然に防ぐ」を実装するため、記録させる文言ではなく、記録"より前"に効く問いかけを通知に出す。
+    // メイン（isFocused）に登録された危険シグナルを優先し、無ければ最初に見つかったものを使う。
+    private var warningSignalNotificationBody: String? {
+        let signals = allItems
+            .sorted { $0.isFocused && !$1.isFocused }
+            .map { $0.warningSignal.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+
+        guard let signal = signals else { return nil }
+        return "「\(signal)」— 今、そうなっていませんか？"
+    }
+
     // MARK: - データの全消去処理
     private func deleteAllData() {
         // ① 目標と記録をすべて削除
         for item in allItems {
             modelContext.delete(item)
         }
-        
-        // ② 保存している連続ログイン日数などをゼロに戻す
-        currentLoginStreak = 0
-        lastRecordDate = 0
-        
+
+        // ② マインドセット表示日もゼロに戻す
+        lastMindsetShownDate = 0
+
         print("🚨 データをすべて完全に削除しました！")
     }
 }
@@ -156,15 +178,25 @@ class NotificationManager {
             }
         }
     }
-    
+
+    // 端末側の設定アプリで変更されていないか、実際の許可状態を確認する（G3）
+    func refreshAuthorizationStatus(completion: @escaping (Bool) -> Void) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                completion(settings.authorizationStatus == .authorized)
+            }
+        }
+    }
+
     // 指定した時間（時・分）で通知をスケジュール
-    func scheduleNotification(hour: Int, minute: Int) {
+    // body を渡すと、危険シグナルなど個別の文言を通知に載せられる（要件定義 v2 4章 層4）
+    func scheduleNotification(hour: Int, minute: Int, body: String? = nil) {
         // 既存の通知をクリア
         cancelNotification()
-        
+
         let content = UNMutableNotificationContent()
         content.title = "Not To Do List"
-        content.body = "今日の「やらないこと」を振り返って記録しましょう！"
+        content.body = body ?? "今日の「やらないこと」を振り返って記録しましょう！"
         content.sound = .default
         
         var dateComponents = DateComponents()
@@ -193,9 +225,3 @@ class NotificationManager {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["dailyNotification"])
     }
 }
-
-#Preview {
-    SettingsView()
-        .modelContainer(for: NotToDoItem.self, inMemory: true)
-}
-

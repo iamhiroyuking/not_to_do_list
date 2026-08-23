@@ -1,24 +1,39 @@
 import SwiftUI
 import SwiftData
 
+// その日1日がどう終わったか。要件定義 v2 3.1「1日の状態は4つ」のうち、
+// カレンダーの点で区別すべき3種類（未記録／KEEP／FAILの2状態）
+private enum DayOutcome {
+    case none    // 未記録
+    case keep    // KEEP
+    case fail    // FAIL（理由の有無は問わない）
+
+    var color: Color {
+        switch self {
+        case .none: return .clear
+        case .keep: return .blue
+        case .fail: return .red
+        }
+    }
+}
+
 struct CalendarView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query private var items: [NotToDoItem]
-    @AppStorage("currentLoginStreak") private var currentLoginStreak: Int = 0
-    
+
     @State private var currentMonth: Date = Date()
     @State private var selectedDate: Date? = nil
     @State private var slideDirection: Edge = .trailing
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
                 Color(UIColor.systemGroupedBackground).ignoresSafeArea()
-                
+
                 ScrollView {
                     VStack(spacing: 20) {
                         calendarCard
-                        
-                        // 🌟 変更：選択状態によって下の表示を切り替える
+
                         if let selected = selectedDate {
                             // 日付が選択されている時は詳細リストを表示
                             detailList(for: selected)
@@ -41,7 +56,7 @@ struct CalendarView: View {
             selectedDate = nil
         }
     }
-    
+
     // MARK: - 1. カレンダーカード
     private var calendarCard: some View {
         VStack(spacing: 16) {
@@ -61,7 +76,7 @@ struct CalendarView: View {
                 }
             }
             .padding(.bottom, 8)
-            
+
             let weekdays = ["日", "月", "火", "水", "木", "金", "土"]
             HStack {
                 ForEach(weekdays, id: \.self) { day in
@@ -71,13 +86,15 @@ struct CalendarView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            
+
             calendarGrid(for: currentMonth)
                 .id(monthYearString(for: currentMonth))
                 .transition(.asymmetric(
                     insertion: .move(edge: slideDirection),
                     removal: .move(edge: slideDirection == .trailing ? .leading : .trailing)
                 ))
+
+            legend
         }
         .padding()
         .background(Color(UIColor.secondarySystemGroupedBackground))
@@ -85,7 +102,25 @@ struct CalendarView: View {
         .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)
         .animation(.easeInOut(duration: 0.3), value: currentMonth)
     }
-    
+
+    // 層3：空白（未記録）が見えることが、戻ってくる理由になる
+    private var legend: some View {
+        HStack(spacing: 16) {
+            legendItem(color: .blue, label: "KEEP")
+            legendItem(color: .red, label: "FAIL")
+            legendItem(color: Color.gray.opacity(0.3), label: "未記録")
+            Spacer()
+        }
+        .padding(.top, 4)
+    }
+
+    private func legendItem(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label).font(.caption2).foregroundColor(.secondary)
+        }
+    }
+
     // MARK: - カレンダーグリッド
     private func calendarGrid(for date: Date) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 16) {
@@ -93,7 +128,7 @@ struct CalendarView: View {
             let emptyCount = firstWeekday - 1
             let days = daysInMonth(for: date)
             let calendar = Calendar.current
-            
+
             if emptyCount > 0 {
                 ForEach(100..<(100 + emptyCount), id: \.self) { _ in
                     VStack(spacing: 4) {
@@ -102,28 +137,31 @@ struct CalendarView: View {
                     }
                 }
             }
-            
+
             ForEach(1...days, id: \.self) { day in
-                // 🌟 修正：計算ロジックを外のメソッド（getCellDate）に任せる！
                 let cellDate = getCellDate(for: date, day: day)
-                
+
                 let isTodayDate = calendar.isDateInToday(cellDate)
                 let isSelected = selectedDate != nil && calendar.isDate(selectedDate!, inSameDayAs: cellDate)
-                let hasRecord = hasRecordOn(day: day)
-                
+                let outcome = dayOutcome(for: cellDate)
+                let isFuture = cellDate > calendar.startOfDay(for: Date())
+
                 VStack(spacing: 4) {
                     Text("\(day)")
                         .font(.system(size: 16, weight: isTodayDate || isSelected ? .bold : .regular))
-                        .foregroundColor(isTodayDate ? .white : .primary)
+                        .foregroundColor(isTodayDate ? .white : (isFuture ? .secondary.opacity(0.4) : .primary))
                         .frame(width: 32, height: 32)
                         .background(
                             Circle().fill(
                                 isTodayDate ? Color.red : (isSelected ? Color.gray.opacity(0.2) : Color.clear)
                             )
                         )
-                    
-                    if hasRecord {
-                        Circle().fill(Color.blue).frame(width: 6, height: 6)
+
+                    // 未記録の日も、過去の日なら薄い点で「空白」を見せる（層3）
+                    if outcome != .none {
+                        Circle().fill(outcome.color).frame(width: 6, height: 6)
+                    } else if !isFuture {
+                        Circle().fill(Color.gray.opacity(0.25)).frame(width: 6, height: 6)
                     } else {
                         Circle().fill(Color.clear).frame(width: 6, height: 6)
                     }
@@ -140,14 +178,14 @@ struct CalendarView: View {
             }
         }
     }
-    
+
     private func getCellDate(for monthDate: Date, day: Int) -> Date {
         let calendar = Calendar.current
         var components = calendar.dateComponents([.year, .month], from: monthDate)
         components.day = day
         return calendar.date(from: components)!
     }
-    
+
     // MARK: - 2. サマリーダッシュボード
     private var summaryDashboard: some View {
         VStack(spacing: 16) {
@@ -157,17 +195,17 @@ struct CalendarView: View {
                     .foregroundColor(.secondary)
                 Spacer()
             }
-            
+
             HStack(spacing: 16) {
                 VStack(spacing: 8) {
-                    Image(systemName: "flame.fill").font(.title).foregroundColor(.orange)
-                    Text("\(currentLoginStreak)日").font(.title2.bold())
-                    Text("連続ログイン").font(.caption).foregroundColor(.secondary)
+                    Image(systemName: "square.stack.3d.up.fill").font(.title).foregroundColor(.blue)
+                    Text("\(observationStreak)日").font(.title2.bold())
+                    Text("連続で記録中").font(.caption).foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 20)
                 .background(Color(UIColor.secondarySystemGroupedBackground)).cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)
-                
+
                 VStack(spacing: 8) {
                     HStack {
                         Image(systemName: "shield.fill").foregroundColor(.blue)
@@ -185,8 +223,8 @@ struct CalendarView: View {
             }
         }
     }
-    
-    // MARK: - 🌟 3. 新規：日付をタップした時の詳細リスト表示
+
+    // MARK: - 3. 日付をタップした時の詳細リスト表示
     private func detailList(for date: Date) -> some View {
         VStack(spacing: 12) {
             // ヘッダー部分（日付と閉じるボタン）
@@ -204,12 +242,11 @@ struct CalendarView: View {
                 }
             }
             .padding(.bottom, 4)
-            
-            // その日の記録を取得
+
             let dayRecords = records(for: date)
-            
+            let missing = itemsMissingRecord(on: date)
+
             if dayRecords.isEmpty {
-                // 記録がない日の表示
                 VStack(spacing: 12) {
                     Image(systemName: "moon.zzz")
                         .font(.largeTitle)
@@ -220,13 +257,19 @@ struct CalendarView: View {
                 }
                 .padding(.vertical, 30)
             } else {
-                // 記録がある日のリスト表示
-                ForEach(dayRecords, id: \.record.id) { data in                    HStack {
-                        Text(data.item.title)
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
+                ForEach(dayRecords, id: \.record.id) { data in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(data.item.title)
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                            if data.record.isBackfilled {
+                                Text("後から記録")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                         Spacer()
-                        // KEEP / FAIL のバッジ表示
                         if data.record.isSuccess {
                             HStack(spacing: 4) {
                                 Image(systemName: "checkmark.shield.fill")
@@ -253,11 +296,66 @@ struct CalendarView: View {
                     .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 1)
                 }
             }
+
+            // 遡及入力（要件定義 v2 3.3）。前日ぶんのみ、埋め忘れの項目にだけ出す
+            if Calendar.current.isDateInYesterday(date), !missing.isEmpty {
+                backfillSection(for: date, missing: missing)
+            }
         }
     }
-    
+
+    // 昨日を埋め忘れた項目に、その場でKEEP/FAILを付けられるようにする
+    private func backfillSection(for date: Date, missing: [NotToDoItem]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("昨日の記録を埋める")
+                .font(.subheadline.bold())
+                .foregroundColor(.orange)
+
+            ForEach(missing) { item in
+                HStack {
+                    Text(item.title)
+                        .font(.subheadline)
+                    Spacer()
+                    Button {
+                        backfill(item: item, date: date, isSuccess: false)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.red)
+                            .frame(width: 30, height: 30)
+                            .background(Color.red.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        backfill(item: item, date: date, isSuccess: true)
+                    } label: {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.blue)
+                            .frame(width: 36, height: 36)
+                            .background(Color.blue.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding()
+        .background(Color.orange.opacity(0.08))
+        .cornerRadius(12)
+    }
+
+    private func backfill(item: NotToDoItem, date: Date, isSuccess: Bool) {
+        withAnimation {
+            let record = DailyRecord(date: date, isSuccess: isSuccess, isBackfilled: true)
+            item.records.append(record)
+        }
+    }
+
     // MARK: - 本物のデータから計算する裏側ロジック
-    
+
     private var recordsInCurrentMonth: [DailyRecord] {
         let calendar = Calendar.current
         let allRecords = items.flatMap { $0.records }
@@ -265,54 +363,63 @@ struct CalendarView: View {
             calendar.isDate(record.date, equalTo: currentMonth, toGranularity: .month)
         }
     }
-    
+
     private var monthlySuccessCount: Int {
         recordsInCurrentMonth.filter { $0.isSuccess }.count
     }
-    
+
     private var monthlyFailCount: Int {
         recordsInCurrentMonth.filter { !$0.isSuccess }.count
     }
-    
-    private func hasRecordOn(day: Int) -> Bool {
-        let calendar = Calendar.current
-        var components = calendar.dateComponents([.year, .month], from: currentMonth)
-        components.day = day
-        guard let targetDate = calendar.date(from: components) else { return false }
-        
-        return recordsInCurrentMonth.contains { record in
-            calendar.isDate(record.date, inSameDayAs: targetDate)
-        }
+
+    private var observationStreak: Int {
+        ObservationStats.compute(items: items).streak
     }
-    
-    // 🌟 新規：指定した日の「習慣の名前」と「記録」のセットを取得する
+
+    private func dayOutcome(for date: Date) -> DayOutcome {
+        let calendar = Calendar.current
+        let dayRecords = items.flatMap { $0.records }.filter { calendar.isDate($0.date, inSameDayAs: date) }
+        if dayRecords.isEmpty { return .none }
+        // その日のどれか1件でもFAILがあれば「FAIL」として見せる（層3は空白の可視化が目的のため、KEEP優先にはしない）
+        return dayRecords.contains(where: { !$0.isSuccess }) ? .fail : .keep
+    }
+
+    // 指定した日の「習慣の名前」と「記録」のセットを取得する
     private func records(for date: Date) -> [(item: NotToDoItem, record: DailyRecord)] {
         let calendar = Calendar.current
         var result: [(NotToDoItem, DailyRecord)] = []
-        
+
         for item in items {
-            // その習慣の中に、指定した日と同じ日の記録があるか探す
             if let record = item.records.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
                 result.append((item, record))
             }
         }
         return result
     }
-    
+
+    // 指定した日にまだ記録が無い項目（遡及入力の対象）
+    private func itemsMissingRecord(on date: Date) -> [NotToDoItem] {
+        let calendar = Calendar.current
+        return items.filter { item in
+            !item.records.contains { calendar.isDate($0.date, inSameDayAs: date) }
+        }
+    }
+
     // MARK: - カレンダー計算用の裏側ロジック
     private func monthYearString(for date: Date) -> String {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
         formatter.dateFormat = "yyyy年 M月"
         return formatter.string(from: date)
     }
-    
-    // 🌟 新規：「2月15日の記録」のような文字列を作る
+
     private func dateString(for date: Date) -> String {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
         formatter.dateFormat = "M月d日の記録"
         return formatter.string(from: date)
     }
-    
+
     private func changeMonth(by value: Int) {
         slideDirection = value > 0 ? .trailing : .leading
         if let newMonth = Calendar.current.date(byAdding: .month, value: value, to: currentMonth) {
@@ -322,12 +429,12 @@ struct CalendarView: View {
             }
         }
     }
-    
+
     private func daysInMonth(for date: Date) -> Int {
         let range = Calendar.current.range(of: .day, in: .month, for: date)!
         return range.count
     }
-    
+
     private func firstWeekdayOfMonth(in date: Date) -> Int {
         let components = Calendar.current.dateComponents([.year, .month], from: date)
         let firstDayOfMonth = Calendar.current.date(from: components)!

@@ -22,15 +22,29 @@ struct NotToDoDetailView: View {
     
     // 👇 🌟 追加：いま「編集モード」かどうかを判定するスイッチ
     @State private var isEditingRecords = false
-    
-    
+
+    // 名前を空にできないようにするための、直前の値の控え（G4）
+    @State private var lastValidTitle = ""
+
     var body: some View {
         Form {
             // ① 基本情報と編集セクション
             Section {
                 TextField("習慣の名前", text: $item.title)
                     .font(.headline)
-                
+                    .onAppear { lastValidTitle = item.title }
+                    .onChange(of: item.title) { _, newValue in
+                        if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            return // 空欄のまま編集中は許容し、確定時にだけ戻す
+                        }
+                        lastValidTitle = newValue
+                    }
+                    .onSubmit {
+                        if item.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            item.title = lastValidTitle
+                        }
+                    }
+
                 HStack {
                     Text("開始日")
                     Spacer()
@@ -172,6 +186,12 @@ struct NotToDoDetailView: View {
         }
         .navigationTitle("詳細と分析")
         .navigationBarTitleDisplayMode(.inline)
+        .onDisappear {
+            // 画面を離れる時点で空欄なら、直前の値に戻す（G4）
+            if item.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                item.title = lastValidTitle
+            }
+        }
         
         // 🔄 リセット用のアラート
         .alert("今日の記録をリセット", isPresented: $showingResetAlert) {
