@@ -81,14 +81,9 @@ enum DevSeed {
         )
         broken.records.append(DailyRecord(date: day(5), isSuccess: true))
         broken.records.append(DailyRecord(date: day(4), isSuccess: true))
-        // 「予測どおり」を押した記録（matchedPrediction）を混ぜて、的中率の表示を確かめられるようにする
+        // 予測が一度も当たっていない状態（分析の「気づいたこと」= signalMisses を出す用）
         broken.records.append(DailyRecord(date: day(3), isSuccess: false, note: "朝の下げで焦って損切りできなかった"))
-        broken.records.append(DailyRecord(
-            date: day(2),
-            isSuccess: false,
-            note: "負けを取り返そうと焦っている時",
-            matchedPrediction: true
-        ))
+        broken.records.append(DailyRecord(date: day(2), isSuccess: false, note: "寝不足で判断が雑になっていた"))
         broken.records.append(DailyRecord(date: day(1), isSuccess: false, note: ""))  // 理由なしFAIL
 
         // ④ 危険シグナルが未入力の項目（分析画面の「まだ書かれていません」を出す用）
@@ -102,7 +97,25 @@ enum DevSeed {
         // 後から埋めた記録（カレンダーと分析の「後から記録」バッジを出す用）
         noSignal.records.append(DailyRecord(date: day(1), isSuccess: true, isBackfilled: true))
 
-        for item in [steady, recovered, broken, noSignal] {
+        // ⑤ 予測がよく当たっている項目（分析の「気づいたこと」= signalWorks を出す用）
+        let accurate = NotToDoItem(
+            title: "帰り道にコンビニへ寄らない",
+            warningSignal: "空腹のまま退勤した日",
+            createdAt: day(6),
+            isFocused: false
+        )
+        accurate.records.append(DailyRecord(date: day(5), isSuccess: true))
+        for ago in [4, 3, 2] {
+            accurate.records.append(DailyRecord(
+                date: day(ago),
+                isSuccess: false,
+                note: "空腹のまま退勤した日",
+                matchedPrediction: true
+            ))
+        }
+        accurate.records.append(DailyRecord(date: day(1), isSuccess: true))
+
+        for item in [steady, recovered, broken, noSignal, accurate] {
             context.insert(item)
         }
     }

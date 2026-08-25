@@ -34,28 +34,28 @@ struct RecordFailView: View {
                 // ① 予測していたこと（書いてある時だけ）
                 if !prediction.isEmpty {
                     Section {
-                        Button {
-                            selectPrediction()
-                        } label: {
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: matchedPrediction
-                                      ? "checkmark.circle.fill"
-                                      : "circle")
-                                    .foregroundColor(matchedPrediction ? .orange : .secondary)
-                                    .font(.title3)
+                        // Form の Section の中では Button + .buttonStyle(.plain) が
+                        // 反応しないことがあるので、行に onTapGesture を付けている
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: matchedPrediction
+                                  ? "checkmark.circle.fill"
+                                  : "circle")
+                                .foregroundColor(matchedPrediction ? .orange : .secondary)
+                                .font(.title3)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(prediction)
-                                        .foregroundColor(.primary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    Text("今回もこれでしたか？")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(prediction)
+                                    .foregroundColor(.primary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text("今回もこれでしたか？")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            .padding(.vertical, 2)
+                            Spacer(minLength: 0)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.vertical, 2)
+                        .contentShape(Rectangle())
+                        .onTapGesture { selectPrediction() }
                     } header: {
                         Label("あなたが予測していた危険シグナル", systemImage: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)

@@ -25,6 +25,12 @@ struct AnalysisView: View {
     private var totalFails: Int {
         comparisons.reduce(0) { $0 + $1.failCount }
     }
+    private var insights: [FailureAnalysis.Insight] {
+        FailureAnalysis.insights(items: items)
+    }
+
+    // 危険シグナルを書き直す対象
+    @State private var editingItem: NotToDoItem?
 
     var body: some View {
         NavigationStack {
@@ -36,6 +42,10 @@ struct AnalysisView: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
+                            // 言えることがある時だけ出す。無ければセクションごと出さない
+                            if !insights.isEmpty {
+                                insightSection
+                            }
                             predictionSection
                             weekdaySection
                             reasonListSection
@@ -45,7 +55,108 @@ struct AnalysisView: View {
                 }
             }
             .navigationTitle("分析")
+            .sheet(item: $editingItem) { item in
+                EditSignalView(item: item)
+            }
         }
+    }
+
+    // MARK: - 気づいたこと
+    //
+    // 記録が貯まるだけで何も変わらないのを避けるための区画。
+    // 危険シグナルは仮説であり、当たったかのデータが揃った以上、
+    // 仮説を育てる方向へ一手だけ示す。
+    //
+    // 言えることが無ければ何も出さない。無理に何か言うと、
+    // 少ない記録から傾向をでっち上げることになる。
+    private var insightSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("気づいたこと", subtitle: "記録から言えることだけを出しています")
+
+            ForEach(insights) { insight in
+                insightCard(insight)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func insightCard(_ insight: FailureAnalysis.Insight) -> some View {
+        switch insight {
+        case .needsSignal(let id, let title, let failCount):
+            insightBody(
+                icon: "questionmark.circle.fill",
+                tint: .orange,
+                title: title,
+                message: "\(failCount)回の失敗を記録しましたが、危険シグナルがまだありません。「どんな時に失敗しそうか」を書いておくと、次からは予測が当たったかを確かめられます。",
+                actionLabel: "危険シグナルを書く",
+                itemID: id
+            )
+
+        case .signalMisses(let id, let title, let failCount):
+            insightBody(
+                icon: "arrow.triangle.2.circlepath",
+                tint: .orange,
+                title: title,
+                message: "\(failCount)回の失敗のうち、予測どおりだったものは一度もありません。崩れ方が予測と違うようです。実際に書いた理由から選び直せます。",
+                actionLabel: "危険シグナルを書き直す",
+                itemID: id
+            )
+
+        case .signalWorks(_, let title, let matched, let failCount):
+            insightBody(
+                icon: "checkmark.seal.fill",
+                tint: .blue,
+                title: title,
+                message: "\(failCount)回のうち\(matched)回は予測どおりでした。崩れ方を自分で言い当てられています。",
+                actionLabel: nil,
+                itemID: nil
+            )
+        }
+    }
+
+    private func insightBody(
+        icon: String,
+        tint: Color,
+        title: String,
+        message: String,
+        actionLabel: String?,
+        itemID: PersistentIdentifier?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .foregroundColor(tint)
+                Text(title)
+                    .font(.headline)
+                Spacer(minLength: 0)
+            }
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let actionLabel, let itemID,
+               let target = items.first(where: { $0.persistentModelID == itemID }) {
+                Button {
+                    editingItem = target
+                } label: {
+                    Text(actionLabel)
+                        .font(.subheadline.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(tint.opacity(0.12))
+                        .foregroundColor(tint)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)
     }
 
     // MARK: - 記録がまだ無いとき

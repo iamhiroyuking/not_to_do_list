@@ -275,6 +275,84 @@ enum FailureAnalysis {
         return top.first
     }
 
+    // MARK: 気づいたこと（要件定義 v2 5.1）
+    //
+    // 分析画面が「並べるだけ」で終わっていると、記録は貯まるのに何も変わらない。
+    // 重心（1.1）は「失敗パターンを記録する」ことだが、記録の価値は
+    // **予測が育つこと**にある。危険シグナルは仮説であり、
+    // いまや当たったかどうかのデータ（matchedPrediction）が揃っている。
+    //
+    // ここでは仮説の状態を3つに仕分けて、次にやることを1つだけ示す。
+    //
+    // **少ない件数から傾向を断定しない。** 曜日の最多が並んだ時に何も言わないのと同じ方針で、
+    // FAILが3件に満たないうちは判断を保留する。外れた回数が2回あった程度で
+    // 「予測が外れています」と言うのは、利用者の観察より統計ごっこを優先することになる。
+    enum Insight: Identifiable {
+        /// 失敗はあるのに、危険シグナルがまだ書かれていない
+        case needsSignal(itemID: PersistentIdentifier, title: String, failCount: Int)
+        /// 十分な回数を試して、一度も予測どおりでなかった
+        case signalMisses(itemID: PersistentIdentifier, title: String, failCount: Int)
+        /// 予測がよく当たっている（褒めるだけ。行動は求めない）
+        case signalWorks(itemID: PersistentIdentifier, title: String, matched: Int, failCount: Int)
+
+        var id: String {
+            switch self {
+            case .needsSignal(let id, _, _):  return "needs-\(id.hashValue)"
+            case .signalMisses(let id, _, _): return "miss-\(id.hashValue)"
+            case .signalWorks(let id, _, _, _): return "works-\(id.hashValue)"
+            }
+        }
+
+        var itemID: PersistentIdentifier {
+            switch self {
+            case .needsSignal(let id, _, _),
+                 .signalMisses(let id, _, _),
+                 .signalWorks(let id, _, _, _):
+                return id
+            }
+        }
+
+        /// 利用者に次の一手を求めるものか（求めないものは静かに出すだけ）
+        var isActionable: Bool {
+            switch self {
+            case .needsSignal, .signalMisses: return true
+            case .signalWorks: return false
+            }
+        }
+    }
+
+    /// 断定に必要な最小の失敗回数。これ未満のときは何も言わない
+    static let minimumFailsForInsight = 3
+
+    static func insights(items: [NotToDoItem]) -> [Insight] {
+        comparisons(items: items).compactMap { c -> Insight? in
+            guard c.failCount > 0 else { return nil }
+
+            // 予測がまだ無い。件数に関わらず、書けば次から答え合わせができる
+            if c.prediction.isEmpty {
+                return .needsSignal(itemID: c.id, title: c.title, failCount: c.failCount)
+            }
+
+            // ここから先は件数が足りている時だけ判断する
+            guard c.failCount >= minimumFailsForInsight else { return nil }
+
+            if c.matchedCount == 0 {
+                return .signalMisses(itemID: c.id, title: c.title, failCount: c.failCount)
+            }
+            if let rate = c.predictionHitRate, rate >= 0.67 {
+                return .signalWorks(
+                    itemID: c.id,
+                    title: c.title,
+                    matched: c.matchedCount,
+                    failCount: c.failCount
+                )
+            }
+            return nil
+        }
+        // 次の一手があるものを先に見せる
+        .sorted { $0.isActionable && !$1.isActionable }
+    }
+
     // MARK: 3. 理由の一覧（全項目を時系列で読み返す）
 
     struct ReasonEntry: Identifiable {
