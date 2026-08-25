@@ -43,21 +43,17 @@ struct SettingsView: View {
                     Toggle(isOn: $isNotificationEnabled) {
                         Label("通知をオンにする", systemImage: "bell.fill")
                     }
-                    .onChange(of: isNotificationEnabled) { oldValue, newValue in
+                    .onChange(of: isNotificationEnabled) { _, newValue in
                         if newValue {
                             NotificationManager.shared.requestPermission { granted in
                                 if granted {
-                                    NotificationManager.shared.scheduleNotification(
-                                        hour: notificationHour,
-                                        minute: notificationMinute,
-                                        body: warningSignalNotificationBody
-                                    )
+                                    reschedule()
                                 } else {
                                     isNotificationEnabled = false // 許可がない場合はオフに戻す
                                 }
                             }
                         } else {
-                            NotificationManager.shared.cancelNotification()
+                            NotificationManager.shared.cancelAll()
                         }
                     }
                     
@@ -76,11 +72,7 @@ struct SettingsView: View {
                                     notificationHour = components.hour ?? 20
                                     notificationMinute = components.minute ?? 0
                                     
-                                    NotificationManager.shared.scheduleNotification(
-                                        hour: notificationHour,
-                                        minute: notificationMinute,
-                                        body: warningSignalNotificationBody
-                                    )
+                                    reschedule()
                                 }
                             ),
                             displayedComponents: .hourAndMinute
@@ -89,13 +81,16 @@ struct SettingsView: View {
                 } header: {
                     Text("通知設定")
                 } footer: {
-                    Text("指定した時間に毎日の振り返り通知を受け取ります。")
+                    Text("メインに指定した項目ごとに通知が届きます。通知を長押しすると、アプリを開かずにKEEP/FAILを記録できます。")
                 }
                 .onAppear {
                     // 端末側の設定アプリでオフにされていた場合、表示をずれさせない（G3）
                     NotificationManager.shared.refreshAuthorizationStatus { isAuthorized in
                         if !isAuthorized {
                             isNotificationEnabled = false
+                        } else if isNotificationEnabled {
+                            // メインの指定や危険シグナルが変わっている可能性があるので組み直す
+                            reschedule()
                         }
                     }
                 }
@@ -138,18 +133,14 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - 通知に載せる危険シグナル（要件定義 v2 4章 層4）
-    //
-    // 「未然に防ぐ」を実装するため、記録させる文言ではなく、記録"より前"に効く問いかけを通知に出す。
-    // メイン（isFocused）に登録された危険シグナルを優先し、無ければ最初に見つかったものを使う。
-    private var warningSignalNotificationBody: String? {
-        let signals = allItems
-            .sorted { $0.isFocused && !$1.isFocused }
-            .map { $0.warningSignal.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { !$0.isEmpty }
-
-        guard let signal = signals else { return nil }
-        return "「\(signal)」— 今、そうなっていませんか？"
+    // 通知を今の状態で組み直す。
+    // 本文（危険シグナル）や対象（メインの指定）は NotificationManager 側で決める。
+    private func reschedule() {
+        NotificationManager.shared.rescheduleAll(
+            hour: notificationHour,
+            minute: notificationMinute,
+            context: modelContext
+        )
     }
 
     // MARK: - データの全消去処理
@@ -169,63 +160,4 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .modelContainer(for: NotToDoItem.self, inMemory: true)
-}
-
-class NotificationManager {
-    static let shared = NotificationManager()
-    
-    // 許可の取得
-    func requestPermission(completion: @escaping (Bool) -> Void) {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            DispatchQueue.main.async {
-                completion(granted)
-            }
-        }
-    }
-
-    // 端末側の設定アプリで変更されていないか、実際の許可状態を確認する（G3）
-    func refreshAuthorizationStatus(completion: @escaping (Bool) -> Void) {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                completion(settings.authorizationStatus == .authorized)
-            }
-        }
-    }
-
-    // 指定した時間（時・分）で通知をスケジュール
-    // body を渡すと、危険シグナルなど個別の文言を通知に載せられる（要件定義 v2 4章 層4）
-    func scheduleNotification(hour: Int, minute: Int, body: String? = nil) {
-        // 既存の通知をクリア
-        cancelNotification()
-
-        let content = UNMutableNotificationContent()
-        content.title = "Not To Do List"
-        content.body = body ?? "今日の「やらないこと」を振り返って記録しましょう！"
-        content.sound = .default
-        
-        var dateComponents = DateComponents()
-        dateComponents.hour = hour
-        dateComponents.minute = minute
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        
-        let request = UNNotificationRequest(
-            identifier: "dailyNotification",
-            content: content,
-            trigger: trigger
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("⚠️ 通知の追加エラー: \(error.localizedDescription)")
-            } else {
-                print("⏰ 通知が設定されました: \(hour)時\(minute)分")
-            }
-        }
-    }
-    
-    // 通知のキャンセル
-    func cancelNotification() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["dailyNotification"])
-    }
 }
