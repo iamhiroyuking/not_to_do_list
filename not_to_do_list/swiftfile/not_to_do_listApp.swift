@@ -3,15 +3,9 @@ import SwiftData
 
 @main
 struct not_to_do_listApp: App {
-    // 通知から記録を書き込むために、コンテナを明示的に持つ（要件定義 v2 4章 層1）。
-    // .modelContainer(for:) に任せると画面の外から触れないため。
-    static let sharedModelContainer: ModelContainer = {
-        do {
-            return try ModelContainer(for: NotToDoItem.self)
-        } catch {
-            fatalError("ModelContainerを作れませんでした: \(error)")
-        }
-    }()
+    // 通知とウィジェットから記録を書き込むために、コンテナを明示的に持つ
+    //（要件定義 v2 4章 層1）。置き場は App Group（SharedStore）。
+    static var sharedModelContainer: ModelContainer { SharedStore.container }
 
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
