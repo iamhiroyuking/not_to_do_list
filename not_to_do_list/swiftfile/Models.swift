@@ -148,3 +148,142 @@ enum ObservationStats {
         return (streak, total)
     }
 }
+
+// MARK: - 失敗パターンの集計（要件定義 v2 5.1「分析画面 — v2の主役」）
+//
+// 重心（1.1）が「自分の失敗パターンを記録すること」である以上、
+// 集めた記録を見せるここがアプリの核心になる。
+// 新しいテーブルは要らず、すべて既存の records から計算できる。
+enum FailureAnalysis {
+
+    // 項目ごとの「予測（危険シグナル）」と「実際（FAIL理由）」の突き合わせ
+    struct Comparison: Identifiable {
+        let id: PersistentIdentifier
+        let title: String
+        let prediction: String          // 事前に書いた危険シグナル
+        let actualReasons: [Reason]     // 事後に書かれた失敗理由
+        let failCount: Int
+        let keepCount: Int
+
+        // 記録が1件でもある項目か（分析に出す価値があるか）
+        var hasRecords: Bool { failCount + keepCount > 0 }
+
+        var keepRate: Double {
+            let total = failCount + keepCount
+            guard total > 0 else { return 0 }
+            return Double(keepCount) / Double(total)
+        }
+    }
+
+    struct Reason: Identifiable {
+        let id: PersistentIdentifier
+        let date: Date
+        let text: String
+        let isBackfilled: Bool
+
+        // 理由が空欄のFAIL。空欄でも記録は成立する（要件定義 v2 8章）が、
+        // 分析の材料としては薄いので区別できるようにしておく
+        var isEmpty: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    // 曜日ごとのKEEP / FAIL件数。index 0 = 日曜（Calendar の weekday は 1=日曜）
+    struct WeekdayTally: Identifiable {
+        let id: Int          // 0...6
+        let label: String
+        let keepCount: Int
+        let failCount: Int
+
+        var total: Int { keepCount + failCount }
+    }
+
+    // MARK: 1. 予測 vs 実際
+
+    static func comparisons(items: [NotToDoItem]) -> [Comparison] {
+        items.map { item in
+            let fails = item.records
+                .filter { !$0.isSuccess }
+                .sorted { $0.date > $1.date }
+
+            return Comparison(
+                id: item.persistentModelID,
+                title: item.title,
+                prediction: item.warningSignal.trimmingCharacters(in: .whitespacesAndNewlines),
+                actualReasons: fails.map {
+                    Reason(
+                        id: $0.persistentModelID,
+                        date: $0.date,
+                        text: $0.note,
+                        isBackfilled: $0.isBackfilled
+                    )
+                },
+                failCount: fails.count,
+                keepCount: item.records.filter { $0.isSuccess }.count
+            )
+        }
+    }
+
+    // MARK: 2. 失敗の分布（曜日別）
+
+    static func weekdayTallies(items: [NotToDoItem]) -> [WeekdayTally] {
+        let calendar = Calendar.current
+        let labels = ["日", "月", "火", "水", "木", "金", "土"]
+
+        var keeps = Array(repeating: 0, count: 7)
+        var fails = Array(repeating: 0, count: 7)
+
+        for item in items {
+            for record in item.records {
+                // Calendar の weekday は 1=日曜 なので 0 始まりに直す
+                let index = calendar.component(.weekday, from: record.date) - 1
+                guard index >= 0, index < 7 else { continue }
+                if record.isSuccess {
+                    keeps[index] += 1
+                } else {
+                    fails[index] += 1
+                }
+            }
+        }
+
+        return (0..<7).map { i in
+            WeekdayTally(id: i, label: labels[i], keepCount: keeps[i], failCount: fails[i])
+        }
+    }
+
+    // 最もFAILが多かった曜日。同数や記録ゼロなら nil（断定できないため出さない）
+    static func worstWeekday(from tallies: [WeekdayTally]) -> WeekdayTally? {
+        let maxFail = tallies.map(\.failCount).max() ?? 0
+        guard maxFail > 0 else { return nil }
+        let top = tallies.filter { $0.failCount == maxFail }
+        // 1位が複数ある間は「傾向」と言えないので出さない
+        guard top.count == 1 else { return nil }
+        return top.first
+    }
+
+    // MARK: 3. 理由の一覧（全項目を時系列で読み返す）
+
+    struct ReasonEntry: Identifiable {
+        let id: PersistentIdentifier
+        let itemTitle: String
+        let date: Date
+        let text: String
+        let isBackfilled: Bool
+    }
+
+    static func allReasons(items: [NotToDoItem]) -> [ReasonEntry] {
+        var entries: [ReasonEntry] = []
+        for item in items {
+            for record in item.records where !record.isSuccess {
+                entries.append(
+                    ReasonEntry(
+                        id: record.persistentModelID,
+                        itemTitle: item.title,
+                        date: record.date,
+                        text: record.note,
+                        isBackfilled: record.isBackfilled
+                    )
+                )
+            }
+        }
+        return entries.sorted { $0.date > $1.date }
+    }
+}

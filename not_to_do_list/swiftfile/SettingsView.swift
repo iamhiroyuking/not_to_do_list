@@ -3,9 +3,9 @@ import SwiftData
 import NotificationCenter 
 
 struct SettingsView: View {
-    // 画面の見た目設定
-    @AppStorage("isDarkMode") private var isDarkMode = false
-    
+    // 画面の見た目設定。既定は「システムに従う」（AppTheme を参照）
+    @AppStorage("appTheme") private var appThemeRaw = AppTheme.system.rawValue
+
     // 通知設定
     @AppStorage("isNotificationEnabled") private var isNotificationEnabled = false
     @AppStorage("notificationHour") private var notificationHour = 20
@@ -24,14 +24,18 @@ struct SettingsView: View {
             Form {
                 // MARK: - 一般設定
                 Section {
-                    Toggle(isOn: $isDarkMode) {
-                        Label("ダークモード", systemImage: "moon.fill")
+                    Picker(selection: $appThemeRaw) {
+                        ForEach(AppTheme.allCases) { theme in
+                            Text(theme.label).tag(theme.rawValue)
+                        }
+                    } label: {
+                        Label("外観", systemImage: "moon.fill")
                             .foregroundColor(.primary)
                     }
                 } header: {
                     Text("一般")
                 } footer: {
-                    Text("ダークモードをオンにすると、目に優しい暗いテーマになります。")
+                    Text("「システム」を選ぶと、端末の設定に合わせて自動で切り替わります。")
                 }
                 
                 // MARK: - 通知設定

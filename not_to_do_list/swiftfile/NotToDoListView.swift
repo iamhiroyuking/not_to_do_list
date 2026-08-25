@@ -15,6 +15,11 @@ struct NotToDoListView: View {
     @AppStorage("lastMindsetShownDate") private var lastMindsetShownDate: Double = 0
     @State private var showingMindset = false
 
+    // メインに指定された項目（上に固定して表示する）
+    private var focusedItems: [NotToDoItem] { items.filter { $0.isFocused } }
+    // それ以外の項目
+    private var otherItems: [NotToDoItem] { items.filter { !$0.isFocused } }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -31,41 +36,32 @@ struct NotToDoListView: View {
                     }
                 } else {
                     List {
-                        ForEach(items) { item in
-                            ZStack {
-                                // 画面遷移のリンク（矢印アイコンが邪魔にならないように透明にする裏技です）
-                                NavigationLink(destination: NotToDoDetailView(item: item)) {
-                                    EmptyView()
+                        // メイン（要件定義 v2 5.2）を上に固定する。
+                        // SwiftDataの @Query は Bool で並べ替えられない（Bool は Comparable でない）ため、
+                        // 取得後にここで2つに振り分けている。
+                        if !focusedItems.isEmpty {
+                            Section {
+                                ForEach(focusedItems) { item in
+                                    itemRow(for: item)
                                 }
-                                .opacity(0)
-
-                                // 今までの行のデザイン
-                                NotToDoRowView(item: item, onRecord: {
-                                    handleRecordAction()
-                                })
+                            } header: {
+                                sectionHeader("メイン", systemImage: "star.fill", color: .orange)
                             }
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        deleteItem(item)
-                                    } label: {
-                                        Label("削除", systemImage: "trash")
-                                    }
-                                    .tint(.red)
+                        }
+
+                        if !otherItems.isEmpty {
+                            Section {
+                                ForEach(otherItems) { item in
+                                    itemRow(for: item)
                                 }
-                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                    // もし今日の記録がすでに存在している場合のみ、リセットボタンを表示する
-                                    if item.recordForToday() != nil {
-                                        Button {
-                                            resetTodayRecord(for: item)
-                                        } label: {
-                                            Label("リセット", systemImage: "arrow.uturn.backward")
-                                        }
-                                        .tint(.orange)
-                                    }
+                            } header: {
+                                // メインが1つも無いときは、ただのリストとして見せる
+                                if focusedItems.isEmpty {
+                                    EmptyView()
+                                } else {
+                                    sectionHeader("そのほか", systemImage: "list.bullet", color: .secondary)
                                 }
+                            }
                         }
                     }
                     .listStyle(.plain)
@@ -100,6 +96,54 @@ struct NotToDoListView: View {
                 })
             }
         }
+    }
+
+    // リストの1行。メイン／そのほかの両セクションで同じものを使う
+    @ViewBuilder
+    private func itemRow(for item: NotToDoItem) -> some View {
+        ZStack {
+            // 画面遷移のリンク（矢印アイコンが邪魔にならないように透明にする裏技です）
+            NavigationLink(destination: NotToDoDetailView(item: item)) {
+                EmptyView()
+            }
+            .opacity(0)
+
+            NotToDoRowView(item: item, onRecord: {
+                handleRecordAction()
+            })
+        }
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                deleteItem(item)
+            } label: {
+                Label("削除", systemImage: "trash")
+            }
+            .tint(.red)
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            // もし今日の記録がすでに存在している場合のみ、リセットボタンを表示する
+            if item.recordForToday() != nil {
+                Button {
+                    resetTodayRecord(for: item)
+                } label: {
+                    Label("リセット", systemImage: "arrow.uturn.backward")
+                }
+                .tint(.orange)
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String, systemImage: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .foregroundColor(color)
+            Text(title)
+        }
+        .font(.caption.bold())
+        .textCase(nil)
     }
 
     private func deleteItem(_ item: NotToDoItem) {

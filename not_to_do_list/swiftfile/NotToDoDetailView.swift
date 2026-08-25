@@ -52,8 +52,16 @@ struct NotToDoDetailView: View {
                     Text(item.createdAt, style: .date)
                         .foregroundColor(.secondary)
                 }
+
+                // メイン指定（要件定義 v2 5.2）。あとから切り替えられるようにしておく
+                Toggle(isOn: $item.isFocused) {
+                    Label("メインに設定する", systemImage: "star.fill")
+                        .foregroundColor(.primary)
+                }
             } header: {
                 Text("基本情報 (タップで名前を編集)")
+            } footer: {
+                Text("メインにするとリストの上に固定され、通知でも優先して扱われます。")
             }
             
             // ⚠️ 危険シグナルセクション
