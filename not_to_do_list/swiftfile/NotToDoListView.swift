@@ -10,6 +10,10 @@ struct NotToDoListView: View {
     @State private var showRecordCelebration = false
     // お祝いカードに出す観測日数（記録した瞬間の値をそのまま使う）
     @State private var celebrationStreak = 0
+    // その日のお祝いを出したかどうか。
+    // 記録のたびに出すと、項目の数だけモーダルを閉じさせることになり、
+    // 層1（入力コストを下げる）と層2（報酬を返す）が喧嘩する。1日1回に絞る。
+    @AppStorage("lastCelebrationDate") private var lastCelebrationDate: Double = 0
 
     // 記録直後のマインドセット画面（要件定義 v2 4章 層2）。1日1回だけ出す
     @AppStorage("lastMindsetShownDate") private var lastMindsetShownDate: Double = 0
@@ -19,6 +23,14 @@ struct NotToDoListView: View {
     private var focusedItems: [NotToDoItem] { items.filter { $0.isFocused } }
     // それ以外の項目
     private var otherItems: [NotToDoItem] { items.filter { !$0.isFocused } }
+
+    // 今日すでに記録した項目の数
+    private var recordedTodayCount: Int {
+        items.filter { $0.recordForToday() != nil }.count
+    }
+    private var isTodayComplete: Bool {
+        !items.isEmpty && recordedTodayCount == items.count
+    }
 
     var body: some View {
         NavigationStack {
@@ -36,6 +48,14 @@ struct NotToDoListView: View {
                     }
                 } else {
                     List {
+                        // 主役の数字（観測日数）と今日の進み具合を、いちばん上に置く。
+                        // 要件定義 3.2① で観測日数を「主役」と決めたのに、
+                        // 画面では 🔥連続KEEP しか出ておらず主役が主役になっていなかった。
+                        todaySummary
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 14, trailing: 16))
+
                         // メイン（要件定義 v2 5.2）を上に固定する。
                         // SwiftDataの @Query は Bool で並べ替えられない（Bool は Comparable でない）ため、
                         // 取得後にここで2つに振り分けている。
@@ -96,6 +116,60 @@ struct NotToDoListView: View {
                 })
             }
         }
+    }
+
+    // MARK: - 今日の要約（主役の数字と進み具合）
+
+    private var todaySummary: some View {
+        let stats = ObservationStats.compute(items: items)
+
+        return HStack(spacing: 14) {
+            // 主役の数字（観測日数）。炎ではなく「積み上がる」記号を割り当てている
+            HStack(spacing: 8) {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("\(stats.streak)日")
+                        .font(.title3.bold())
+                        .monospacedDigit()
+                    Text("連続で記録中")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Divider().frame(height: 30)
+
+            // 今日の進み具合。「あと何を記録すればいいか」が一目で分かるようにする
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("今日の記録")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(recordedTodayCount)/\(items.count)")
+                        .font(.caption.bold())
+                        .monospacedDigit()
+                        .foregroundColor(isTodayComplete ? .blue : .primary)
+                    if isTodayComplete {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                }
+                ProgressView(
+                    value: Double(recordedTodayCount),
+                    total: Double(max(items.count, 1))
+                )
+                .tint(isTodayComplete ? .blue : .orange)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .cornerRadius(14)
     }
 
     // リストの1行。メイン／そのほかの両セクションで同じものを使う
@@ -171,6 +245,15 @@ struct NotToDoListView: View {
     private func handleRecordAction() {
         let stats = ObservationStats.compute(items: items)
         celebrationStreak = stats.streak
+
+        // 記録のたびにモーダルを出すと、項目が4つあれば4回閉じさせることになる。
+        // 報酬が入力の邪魔をしていたので、1日1回だけに絞った。
+        // 数字そのものは todaySummary に常に出ているので、報酬は消えていない。
+        let calendar = Calendar.current
+        let shownDate = Date(timeIntervalSince1970: lastCelebrationDate)
+        guard !calendar.isDateInToday(shownDate) else { return }
+
+        lastCelebrationDate = Date().timeIntervalSince1970
         withAnimation { showRecordCelebration = true }
     }
 
@@ -234,8 +317,9 @@ struct NotToDoRowView: View {
     // SwiftDataのモデルをそのまま監視する
     @Bindable var item: NotToDoItem
     var onRecord: () -> Void
-    @State private var showingFailAlert = false
-    @State private var failReason = ""
+    // 失敗の記録はアラートではなく画面で行う（RecordFailView）。
+    // 危険シグナルをその場で見せたいので、1行のテキスト欄では足りなかった。
+    @State private var showingFailSheet = false
 
     var body: some View {
         // 今日の記録がすでにあるかチェックする
@@ -306,7 +390,7 @@ struct NotToDoRowView: View {
                 HStack(spacing: 12) {
                     // 失敗ボタン
                     Button(action: {
-                        showingFailAlert = true
+                        showingFailSheet = true
                     }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .bold))
@@ -338,23 +422,18 @@ struct NotToDoRowView: View {
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-        .alert("失敗の記録", isPresented: $showingFailAlert) {
-            TextField("理由（例: スマホを寝室に持ち込んだ等）", text: $failReason)
-
-            Button("キャンセル", role: .cancel) {
-                failReason = ""
-            }
-
-            Button("記録する", role: .destructive) {
+        .sheet(isPresented: $showingFailSheet) {
+            RecordFailView(item: item) { reason, matched in
                 // 理由は空欄でもよい（要件定義 v2 8章）。入力した事実そのものに価値がある
-                let newRecord = DailyRecord(date: Date(), isSuccess: false, note: failReason)
+                let newRecord = DailyRecord(
+                    date: Date(),
+                    isSuccess: false,
+                    note: reason,
+                    matchedPrediction: matched
+                )
                 item.records.append(newRecord)
-
                 onRecord()
-                failReason = ""
             }
-        } message: {
-            Text("何が原因で破ってしまいましたか？次に活かすためにメモしておきましょう。（空欄でもOK）")
         }
     }
 }

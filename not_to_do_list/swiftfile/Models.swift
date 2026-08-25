@@ -93,15 +93,20 @@ final class DailyRecord {
     var note: String
     // 後からカレンダーで埋めた記録かどうか（要件定義 v2 3.3）。数字の救済とデータの正直さを両立させるための印
     var isBackfilled: Bool = false
+    // 事前に書いた危険シグナルのとおりだったか（要件定義 v2 5.1）。
+    // 記録する画面で「予測どおり」を押した時だけ true になる。
+    // 予測を「当たったか」で答え合わせできるようにするための、このアプリの中核データ。
+    var matchedPrediction: Bool = false
 
     // どの目標に対する記録か
     var item: NotToDoItem?
 
-    init(date: Date, isSuccess: Bool, note: String = "", isBackfilled: Bool = false) {
+    init(date: Date, isSuccess: Bool, note: String = "", isBackfilled: Bool = false, matchedPrediction: Bool = false) {
         self.date = date
         self.isSuccess = isSuccess
         self.note = note
         self.isBackfilled = isBackfilled
+        self.matchedPrediction = matchedPrediction
     }
 }
 
@@ -168,6 +173,15 @@ enum FailureAnalysis {
         // 記録が1件でもある項目か（分析に出す価値があるか）
         var hasRecords: Bool { failCount + keepCount > 0 }
 
+        // 「予測どおり」を押して記録された失敗の数（要件定義 v2 5.1）
+        var matchedCount: Int { actualReasons.filter(\.matchedPrediction).count }
+
+        // 予測の的中率。失敗が1件も無ければ nil（率として意味を持たない）
+        var predictionHitRate: Double? {
+            guard failCount > 0, !prediction.isEmpty else { return nil }
+            return Double(matchedCount) / Double(failCount)
+        }
+
         var keepRate: Double {
             let total = failCount + keepCount
             guard total > 0 else { return 0 }
@@ -180,6 +194,7 @@ enum FailureAnalysis {
         let date: Date
         let text: String
         let isBackfilled: Bool
+        let matchedPrediction: Bool
 
         // 理由が空欄のFAIL。空欄でも記録は成立する（要件定義 v2 8章）が、
         // 分析の材料としては薄いので区別できるようにしておく
@@ -213,7 +228,8 @@ enum FailureAnalysis {
                         id: $0.persistentModelID,
                         date: $0.date,
                         text: $0.note,
-                        isBackfilled: $0.isBackfilled
+                        isBackfilled: $0.isBackfilled,
+                        matchedPrediction: $0.matchedPrediction
                     )
                 },
                 failCount: fails.count,

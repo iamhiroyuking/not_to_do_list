@@ -82,9 +82,22 @@ struct AnalysisView: View {
 
                     // 予測（事前に書いた危険シグナル）
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("予測していた危険シグナル", systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption.bold())
-                            .foregroundColor(.orange)
+                        HStack {
+                            Label("予測していた危険シグナル", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption.bold())
+                                .foregroundColor(.orange)
+                            Spacer()
+                            // 答え合わせ。「予測どおり」を押した回数から出している
+                            if let rate = comparison.predictionHitRate {
+                                Text("的中 \(comparison.matchedCount)/\(comparison.failCount)")
+                                    .font(.caption2.bold())
+                                    .foregroundColor(rate >= 0.5 ? .orange : .secondary)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background((rate >= 0.5 ? Color.orange : Color.gray).opacity(0.12))
+                                    .cornerRadius(6)
+                            }
+                        }
                         if comparison.prediction.isEmpty {
                             Text("まだ書かれていません")
                                 .font(.subheadline)
@@ -115,6 +128,12 @@ struct AnalysisView: View {
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                         .frame(width: 48, alignment: .leading)
+                                    if reason.matchedPrediction {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                            .help("予測どおり")
+                                    }
                                     Text(reason.isEmpty ? "理由なし" : reason.text)
                                         .font(.subheadline)
                                         .foregroundColor(reason.isEmpty ? .secondary : .primary)

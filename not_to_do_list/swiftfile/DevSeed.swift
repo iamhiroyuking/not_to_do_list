@@ -63,7 +63,12 @@ enum DevSeed {
             isFocused: true
         )
         recovered.records.append(DailyRecord(date: day(4), isSuccess: true))
-        recovered.records.append(DailyRecord(date: day(3), isSuccess: false, note: "終電で疲れて何も作れなかった"))
+        recovered.records.append(DailyRecord(
+            date: day(3),
+            isSuccess: false,
+            note: "残業で帰りが遅くなった日",
+            matchedPrediction: true
+        ))
         recovered.records.append(DailyRecord(date: day(2), isSuccess: true))
         recovered.records.append(DailyRecord(date: day(1), isSuccess: true))
 
@@ -76,8 +81,14 @@ enum DevSeed {
         )
         broken.records.append(DailyRecord(date: day(5), isSuccess: true))
         broken.records.append(DailyRecord(date: day(4), isSuccess: true))
+        // 「予測どおり」を押した記録（matchedPrediction）を混ぜて、的中率の表示を確かめられるようにする
         broken.records.append(DailyRecord(date: day(3), isSuccess: false, note: "朝の下げで焦って損切りできなかった"))
-        broken.records.append(DailyRecord(date: day(2), isSuccess: false, note: "取り返そうとして倍のロットで入った"))
+        broken.records.append(DailyRecord(
+            date: day(2),
+            isSuccess: false,
+            note: "負けを取り返そうと焦っている時",
+            matchedPrediction: true
+        ))
         broken.records.append(DailyRecord(date: day(1), isSuccess: false, note: ""))  // 理由なしFAIL
 
         // ④ 危険シグナルが未入力の項目（分析画面の「まだ書かれていません」を出す用）
