@@ -196,6 +196,115 @@ print(re.sub(r'\n{2,}','\n',html.unescape(t)).strip())
 
 ---
 
+## 資料収集プロンプト（検索用。DeepResearchではなく通常検索でよい）
+
+**今回はDeepResearch向きの調査ではない。** 著者名・発表年まで特定できている
+個別の論文を裏取りするだけなので、これは調査ではなく**引用の確認**にあたる。
+Google Scholarや通常の検索の方が、遠回りせず正確に当てられる。
+
+各プロンプトは検索窓にそのまま貼れる形にしてある。見つけた論文（PDFがあればPDF、
+無ければアブストラクトのページ）をそのままNotebookLMのソースとして追加すればよい。
+
+### 🔴 #2 problem1「意志力は消耗する」
+
+```
+Hagger 2016 registered replication report ego depletion
+Perspectives on Psychological Science
+```
+```
+Vohs 2021 multisite replication ego depletion registered replication
+```
+```
+Inzlicht Schmeichel process model self-control shifting attention motivation
+（自我消耗の対抗説。「資源が尽きる」ではなく「注意配分が変わる」とする説明）
+```
+```
+Danziger Levav Avnaim-Pesso extraneous factors judicial decisions 2011
+```
+```
+Weinshall-Margel Shapard extraneous factors judicial decisions order effects rebuttal
+（↑への反論。判事の休憩直後の判断に関する研究の順序が無作為でなかったという指摘）
+```
+```
+"1日 3万5000回 選択" OR "35000 decisions a day" origin source citation
+（出典が本当に無いかを確かめる検索。見つからなければ削除の判断材料になる）
+```
+
+### 🔴 #3 problem2「マルチタスクの幻想」
+
+```
+Rubinstein Meyer Evans 2001 executive control cognitive processes task switching
+Journal of Experimental Psychology Human Perception and Performance
+```
+```
+Gloria Mark UC Irvine interruption recovery time 23 minutes study
+（「23分15秒」が何を測った数字かを確認）
+```
+```
+Glenn Wilson 2005 infomania IQ study HP retraction exaggerated
+（「IQ10ポイント低下」の報道と、本人が誇張と述べたとされる件の確認）
+```
+
+### 🟡 #4 problem5「偽りの報酬」
+
+```
+Berridge Robinson incentive salience wanting liking dopamine review
+```
+```
+behavioral addiction substance addiction comparison criticism overreach
+```
+
+### 🟡 #5 action4「記録して可視化する」
+
+```
+Harkin 2016 meta-analysis progress monitoring goal attainment
+Psychological Bulletin
+```
+```
+Jerry Seinfeld "don't break the chain" productivity method origin denies
+（本人が否定しているとされる件の確認）
+```
+
+### 🟡 #6 problem3「完璧主義の呪縛」
+
+```
+Steel 2007 meta-analysis procrastination nature causes
+```
+```
+Sirois Pychyl procrastination emotion regulation short-term mood repair
+```
+```
+perfectionism self-oriented socially-prescribed dimensions review
+```
+
+### 🔵 #7 problem4「睡眠不足」
+
+```
+Dawson Reid 1997 Nature fatigue alcohol performance impairment
+（すでに特定済み。Natureの短報なので原文を直接確認できる）
+```
+```
+sleep deprivation memory consolidation review
+```
+```
+"Why We Sleep" Matthew Walker data accuracy criticism
+（この本だけを典拠にしないための確認。指摘の実在を裏取りする）
+```
+
+### 🔵 #8 action2「代わりの行動を用意する」
+
+```
+Gollwitzer 1999 implementation intentions strong effects
+```
+```
+Gollwitzer Sheeran 2006 meta-analysis implementation intentions effect size
+```
+```
+Wegner 1987 ironic process theory white bear suppression thought
+```
+
+---
+
 ## Issueへの貼り方
 
 プロンプトA・Bの結果を、そのままIssueにコメントで貼ってください。
