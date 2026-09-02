@@ -446,8 +446,7 @@ struct CalendarView: View {
     }
 
     private func daysInMonth(for date: Date) -> Int {
-        let range = Calendar.current.range(of: .day, in: .month, for: date)!
-        return range.count
+        Calendar.current.range(of: .day, in: .month, for: date)?.count ?? 30
     }
 
     private func firstWeekdayOfMonth(in date: Date) -> Int {
