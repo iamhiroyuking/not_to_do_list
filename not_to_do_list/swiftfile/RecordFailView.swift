@@ -56,6 +56,10 @@ struct RecordFailView: View {
                         .padding(.vertical, 2)
                         .contentShape(Rectangle())
                         .onTapGesture { selectPrediction() }
+                        // onTapGesture だけでは VoiceOver がボタンとして認識しないため明示する
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("予測: \(prediction)")
+                        .accessibilityAddTraits(matchedPrediction ? [.isButton, .isSelected] : .isButton)
                     } header: {
                         Label("あなたが予測していた危険シグナル", systemImage: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)

@@ -170,6 +170,7 @@ struct NotToDoWidgetView: View {
                 .frame(width: 28, height: 28)
                 .background(Color.red.opacity(0.12))
                 .clipShape(Circle())
+                .accessibilityLabel("\(item.title)、FAIL")
 
                 Button(intent: RecordIntent(itemID: item.id, isSuccess: true)) {
                     Image(systemName: "shield.fill")
@@ -180,6 +181,7 @@ struct NotToDoWidgetView: View {
                 .frame(width: 28, height: 28)
                 .background(Color.blue.opacity(0.12))
                 .clipShape(Circle())
+                .accessibilityLabel("\(item.title)、KEEP")
             }
         }
     }

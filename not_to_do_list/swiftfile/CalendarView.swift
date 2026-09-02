@@ -175,7 +175,20 @@ struct CalendarView: View {
                         }
                     }
                 }
+                // onTapGesture だけでは VoiceOver がボタンとして認識しないため明示する
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityLabel(day: day, isToday: isTodayDate, outcome: outcome))
+                .accessibilityAddTraits(.isButton)
             }
+        }
+    }
+
+    private func accessibilityLabel(day: Int, isToday: Bool, outcome: DayOutcome) -> String {
+        let dayText = isToday ? "\(day)日、今日" : "\(day)日"
+        switch outcome {
+        case .keep: return "\(dayText)、KEEP"
+        case .fail: return "\(dayText)、FAIL"
+        case .none: return "\(dayText)、未記録"
         }
     }
 
@@ -183,7 +196,9 @@ struct CalendarView: View {
         let calendar = Calendar.current
         var components = calendar.dateComponents([.year, .month], from: monthDate)
         components.day = day
-        return calendar.date(from: components)!
+        // 呼び出し元は daysInMonth の範囲内でしか day を渡さないため通常は失敗しないが、
+        // 強制アンラップは避け、失敗時は月初日にフォールバックする
+        return calendar.date(from: components) ?? calendar.startOfDay(for: monthDate)
     }
 
     // MARK: - 2. サマリーダッシュボード
@@ -436,9 +451,10 @@ struct CalendarView: View {
     }
 
     private func firstWeekdayOfMonth(in date: Date) -> Int {
-        let components = Calendar.current.dateComponents([.year, .month], from: date)
-        let firstDayOfMonth = Calendar.current.date(from: components)!
-        return Calendar.current.component(.weekday, from: firstDayOfMonth)
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month], from: date)
+        let firstDayOfMonth = calendar.date(from: components) ?? date
+        return calendar.component(.weekday, from: firstDayOfMonth)
     }
 }
 

@@ -64,6 +64,10 @@ struct EditSignalView: View {
                                     draft = reason
                                 }
                             }
+                            // onTapGesture だけでは VoiceOver がボタンとして認識しないため明示する
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(reason)
+                            .accessibilityAddTraits(draft == reason ? [.isButton, .isSelected] : .isButton)
                         }
                     } header: {
                         Text("実際に書いた理由から選ぶ")

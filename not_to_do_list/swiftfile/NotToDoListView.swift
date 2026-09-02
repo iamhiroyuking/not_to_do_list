@@ -105,6 +105,7 @@ struct NotToDoListView: View {
                     Button(action: { showingAddItemSheet = true }) {
                         Image(systemName: "plus").fontWeight(.bold)
                     }
+                    .accessibilityLabel("新しい「しないこと」を追加")
                 }
             }
             .sheet(isPresented: $showingAddItemSheet) {
@@ -400,6 +401,7 @@ struct NotToDoRowView: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("FAIL。今日は破ってしまった")
 
                     // 成功ボタン
                     Button(action: {
@@ -415,6 +417,7 @@ struct NotToDoRowView: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("KEEP。今日は我慢できた")
                 }
             }
         }
